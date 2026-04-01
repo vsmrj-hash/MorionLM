@@ -1,45 +1,38 @@
-import OpenAI from 'openai';
+import { NextResponse } from 'next/server';
+import { synthesizeContext } from '@/lib/ai/router';
 
-export interface AiNodeContext {
-  type?: string;
-  label?: string;
-  data?: { type?: string; label?: string };
-}
+// 🔥 Force runtime behavior (prevents build-time execution issues)
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export async function synthesizeContext(
-  nodes: AiNodeContext[],
-  prompt: string
-) {
-  const contextData = nodes.map((n) => ({
-    type: n.type || n.data?.type,
-    content: n.label || n.data?.label,
-  }));
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { nodes, prompt } = body;
 
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY not configured");
+    // Basic validation
+    if (!nodes || !Array.isArray(nodes)) {
+      return NextResponse.json(
+        { error: 'Invalid nodes context provided' },
+        { status: 400 }
+      );
+    }
+
+    const insight = await synthesizeContext(
+      nodes,
+      prompt || 'Find connections between these thoughts.'
+    );
+
+    return NextResponse.json({ insight });
+  } catch (error: unknown) {
+    console.error('Synthesis error:', error);
+
+    const message =
+      error instanceof Error ? error.message : 'Failed to synthesize';
+
+    return NextResponse.json(
+      { error: message },
+      { status: 500 }
+    );
   }
-
-  // ✅ Initialize ONLY inside function (critical fix)
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
-
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are Morion OS, a cognitive operating system. Synthesize the provided context nodes into a single profound insight. Provide a pure observation. No platitudes. Keep it concise (1-2 sentences).',
-      },
-      {
-        role: 'user',
-        content: `Nodes context: ${JSON.stringify(
-          contextData
-        )}\n\nQuery: ${prompt}`,
-      },
-    ],
-  });
-
-  return response.choices[0].message.content;
 }
