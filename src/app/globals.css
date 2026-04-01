@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Outfit:wght@100..900&display=swap');
+
+:root {
+  --bg-color-1: #050505;
+  --bg-color-2: #0A0A0A;
+  
+  --glass-bg: rgba(20, 20, 20, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-blur: blur(12px);
+  --glass-highlight: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 100%);
+
+  --text-primary: rgba(255, 255, 255, 0.9);
+  --text-secondary: rgba(255, 255, 255, 0.5);
+
+  --accent-red: #D32F2F;
+  --accent-red-glow: rgba(211, 47, 47, 0.3);
+
+  --crystal-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  --crystal-drop: 0 0 10px rgba(255, 255, 255, 0.02);
+
+  --font-body: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg-color-1);
+  background: radial-gradient(circle at center, var(--bg-color-1) 0%, var(--bg-color-2) 100%);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-weight: 300;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  overflow: hidden; /* For app-like layout */
+  height: 100vh;
+  width: 100vw;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--crystal-shadow), var(--crystal-drop);
+}
+
+.crystal-button {
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px; /* minimal */
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.crystal-button::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: var(--glass-highlight);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.crystal-button:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.crystal-button:hover::after {
+  opacity: 1;
+}
+
+.crystal-button.accent {
+  background: var(--accent-red);
+  color: #fff;
+  border-color: var(--accent-red);
+  box-shadow: 0 0 15px var(--accent-red-glow);
+}
+
+.crystal-input {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  padding: 12px;
+  border-radius: 4px;
+  font-family: var(--font-body);
+  outline: none;
+  transition: border-color 0.3s ease;
+  width: 100%;
+}
+
+.crystal-input:focus {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* React Flow overrides */
+.react-flow__bg {
+  background-color: transparent !important;
+}
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
