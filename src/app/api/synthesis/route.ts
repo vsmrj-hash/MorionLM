@@ -1,20 +1,43 @@
-import { NextResponse } from 'next/server';
-import { synthesizeContext } from '@/lib/ai/router';
+import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { nodes, prompt } = await req.json();
-    
-    if (!nodes || !Array.isArray(nodes)) {
-      return NextResponse.json({ error: 'Invalid nodes context provided' }, { status: 400 });
+    const body = await req.json();
+
+    if (!body || typeof body.url !== "string") {
+      return NextResponse.json(
+        { error: "Missing or invalid URL" },
+        { status: 400 }
+      );
     }
 
-    const insight = await synthesizeContext(nodes, prompt || 'Find connections between these thoughts.');
+    const url = body.url.trim();
 
-    return NextResponse.json({ insight });
-  } catch (error: unknown) {
-    console.error('Synthesis error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to synthesize';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const match = url.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/
+    );
+
+    if (!match || !match[1]) {
+      return NextResponse.json(
+        { error: "Invalid YouTube URL" },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      videoId: match[1],
+    });
+
+  } catch (err) {
+    console.error("EXTRACT ERROR:", err);
+
+    return NextResponse.json(
+      { error: String(err) },
+      { status: 500 }
+    );
   }
 }
