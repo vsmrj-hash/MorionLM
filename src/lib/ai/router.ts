@@ -1,45 +1,42 @@
-import OpenAI from 'openai';
+import { NextResponse } from "next/server";
 
-export interface AiNodeContext {
-  type?: string;
-  label?: string;
-  data?: { type?: string; label?: string };
-}
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-// ✅ THIS MUST BE EXPORTED
-export async function synthesizeContext(
-  nodes: AiNodeContext[],
-  prompt: string
-) {
-  const contextData = nodes.map((n) => ({
-    type: n.type || n.data?.type,
-    content: n.label || n.data?.label,
-  }));
+export async function POST(req: Request) {
+  try {
+    const { url } = await req.json();
 
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY not configured");
+    if (!url) {
+      return NextResponse.json({ error: "No URL provided" }, { status: 400 });
+    }
+
+    // 🔥 TEMP: Extract video ID (YouTube only for now)
+    const videoIdMatch = url.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/
+    );
+
+    const videoId = videoIdMatch ? videoIdMatch[1] : null;
+
+    if (!videoId) {
+      return NextResponse.json(
+        { error: "Invalid YouTube URL" },
+        { status: 400 }
+      );
+    }
+
+    // 🔥 BASIC RESPONSE (replace later with transcript API)
+    return NextResponse.json({
+      type: "video",
+      title: "YouTube Video",
+      videoId,
+      message: "Extraction working (basic)",
+    });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { error: "Extraction failed" },
+      { status: 500 }
+    );
   }
-
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
-
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are Morion OS, a cognitive operating system. Synthesize the provided context nodes into a single profound insight. Provide a pure observation. No platitudes. Keep it concise (1-2 sentences).',
-      },
-      {
-        role: 'user',
-        content: `Nodes context: ${JSON.stringify(
-          contextData
-        )}\n\nQuery: ${prompt}`,
-      },
-    ],
-  });
-
-  return response.choices[0].message.content;
 }
