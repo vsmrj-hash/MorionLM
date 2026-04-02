@@ -1,25 +1,20 @@
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    console.log("BODY RECEIVED:", body); // 🔥 debug
-
-    if (!body || typeof body.url !== "string") {
+    if (!body?.url) {
       return NextResponse.json(
-        { error: "Missing or invalid URL" },
+        { error: "No URL provided" },
         { status: 400 }
       );
     }
 
-    const url = body.url.trim();
+    const url = body.url;
 
     const match = url.match(
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/i
     );
 
     if (!match) {
@@ -35,8 +30,6 @@ export async function POST(req: Request) {
     });
 
   } catch (err) {
-    console.error("EXTRACT ERROR:", err);
-
     return NextResponse.json(
       { error: String(err) },
       { status: 500 }
