@@ -16,7 +16,7 @@ export default function LeftPanel() {
     alert(`Selected: ${file.name}`);
   };
 
-  // ===== EXTRACT =====
+  // ===== EXTRACT + AI =====
   const handleExtract = async () => {
     console.log("🔥 BUTTON CLICKED");
 
@@ -43,28 +43,19 @@ export default function LeftPanel() {
 
       console.log("📡 STATUS:", res.status);
 
-      // 🔥 SAFE RESPONSE HANDLING
-      const text = await res.text();
-      console.log("📨 RAW RESPONSE:", text);
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error("Invalid JSON response (likely 404 or HTML)");
-      }
-
-      console.log("✅ PARSED RESPONSE:", data);
+      const data = await res.json();
+      console.log("📨 RESPONSE:", data);
 
       if (!res.ok) {
         alert("❌ Failed: " + data.error);
         return;
       }
 
-      alert("✅ Success: " + data.videoId);
+      // 🔥 UPDATED OUTPUT (AI INSIGHT)
+      alert("🧠 Insight:\n\n" + data.insight);
 
     } catch (err: any) {
-      console.error("💥 FULL CRASH:", err);
+      console.error("💥 ERROR:", err);
       alert("CRASH: " + err?.message);
     } finally {
       setLoading(false);
@@ -114,7 +105,7 @@ export default function LeftPanel() {
         <Upload size={16} /> Upload Media
       </button>
 
-      {/* INPUT */}
+      {/* VIDEO INPUT */}
       <input
         value={videoUrl}
         onChange={(e) => setVideoUrl(e.target.value)}
@@ -128,7 +119,7 @@ export default function LeftPanel() {
         }}
       />
 
-      {/* DEBUG BUTTON */}
+      {/* EXTRACT BUTTON */}
       <button
         onClick={handleExtract}
         disabled={loading}
@@ -140,7 +131,7 @@ export default function LeftPanel() {
           cursor: "pointer",
         }}
       >
-        {loading ? "Processing..." : "TEST EXTRACT"}
+        {loading ? "Processing..." : "Extract Video"}
       </button>
     </div>
   );
