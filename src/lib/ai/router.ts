@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import OpenAI from "openai";
 
 export interface AiNodeContext {
   type?: string;
@@ -6,6 +6,7 @@ export interface AiNodeContext {
   data?: { type?: string; label?: string };
 }
 
+// ✅ ONLY THIS FUNCTION EXISTS HERE
 export async function synthesizeContext(
   nodes: AiNodeContext[],
   prompt: string
@@ -24,21 +25,19 @@ export async function synthesizeContext(
   });
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: "gpt-4o",
     messages: [
       {
-        role: 'system',
+        role: "system",
         content:
-          'You are Morion OS, a cognitive operating system. Synthesize the provided context nodes into a single profound insight. Provide a pure observation. No platitudes. Keep it concise (1-2 sentences).',
+          "You are Morion OS, a cognitive operating system. Synthesize the provided context nodes into a single profound insight. No fluff. 1-2 sharp sentences.",
       },
       {
-        role: 'user',
-        content: `Nodes context: ${JSON.stringify(
-          contextData
-        )}\n\nQuery: ${prompt}`,
+        role: "user",
+        content: `Nodes: ${JSON.stringify(contextData)}\n\nQuery: ${prompt}`,
       },
     ],
   });
 
-  return response.choices[0].message.content;
+  return response.choices[0]?.message?.content || "No insight generated.";
 }

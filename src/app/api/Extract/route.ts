@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { synthesizeContext } from "@/lib/ai/router";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -8,24 +7,33 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    if (!body || !Array.isArray(body.nodes)) {
+    if (!body || typeof body.url !== "string") {
       return NextResponse.json(
-        { error: "Invalid nodes input" },
+        { error: "Missing or invalid URL" },
         { status: 400 }
       );
     }
 
-    const prompt =
-      body.prompt || "Find meaningful connections between these thoughts.";
+    const url = body.url.trim();
 
-    const result = await synthesizeContext(body.nodes, prompt);
+    const match = url.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/
+    );
+
+    if (!match) {
+      return NextResponse.json(
+        { error: "Invalid YouTube URL" },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      insight: result,
+      videoId: match[1],
     });
+
   } catch (err) {
-    console.error("SYNTHESIS ERROR:", err);
+    console.error("EXTRACT ERROR:", err);
 
     return NextResponse.json(
       { error: String(err) },
