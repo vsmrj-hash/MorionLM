@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Upload, Link2 } from "lucide-react";
+import { Upload } from "lucide-react";
 
 export default function LeftPanel() {
   const [videoUrl, setVideoUrl] = useState("");
@@ -43,8 +43,18 @@ export default function LeftPanel() {
 
       console.log("📡 STATUS:", res.status);
 
-      const data = await res.json();
-      console.log("📨 RESPONSE:", data);
+      // 🔥 SAFE RESPONSE HANDLING
+      const text = await res.text();
+      console.log("📨 RAW RESPONSE:", text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Invalid JSON response (likely 404 or HTML)");
+      }
+
+      console.log("✅ PARSED RESPONSE:", data);
 
       if (!res.ok) {
         alert("❌ Failed: " + data.error);
@@ -53,9 +63,9 @@ export default function LeftPanel() {
 
       alert("✅ Success: " + data.videoId);
 
-    } catch (err) {
-      console.error("💥 CRASH:", err);
-      alert("Extraction crashed");
+    } catch (err: any) {
+      console.error("💥 FULL CRASH:", err);
+      alert("CRASH: " + err?.message);
     } finally {
       setLoading(false);
     }
@@ -73,7 +83,7 @@ export default function LeftPanel() {
         background: "rgba(10,10,10,0.6)",
         backdropFilter: "blur(12px)",
         borderRight: "1px solid rgba(255,255,255,0.08)",
-        zIndex: 1000, // 🔥 force above everything
+        zIndex: 1000,
         position: "relative",
       }}
     >
@@ -99,7 +109,6 @@ export default function LeftPanel() {
           color: "#fff",
           border: "none",
           cursor: "pointer",
-          zIndex: 9999,
         }}
       >
         <Upload size={16} /> Upload Media
@@ -119,7 +128,7 @@ export default function LeftPanel() {
         }}
       />
 
-      {/* 🚨 DEBUG BUTTON (NO CSS INTERFERENCE) */}
+      {/* DEBUG BUTTON */}
       <button
         onClick={handleExtract}
         disabled={loading}
@@ -129,8 +138,6 @@ export default function LeftPanel() {
           padding: "12px",
           border: "none",
           cursor: "pointer",
-          zIndex: 9999,
-          position: "relative",
         }}
       >
         {loading ? "Processing..." : "TEST EXTRACT"}
