@@ -13,13 +13,13 @@ export default function LeftPanel() {
     if (!file) return;
 
     console.log("Selected file:", file);
-
-    // TEMP: Replace later with real upload logic
     alert(`Selected: ${file.name}`);
   };
 
   // ===== VIDEO EXTRACT HANDLER =====
   const handleExtract = async () => {
+    console.log("BUTTON CLICKED");
+
     if (!videoUrl) {
       alert("Enter a video URL");
       return;
@@ -28,9 +28,11 @@ export default function LeftPanel() {
     try {
       setLoading(true);
 
+      const endpoint = `${window.location.origin}/api/extract`;
+      console.log("Calling:", endpoint);
       console.log("Sending URL:", videoUrl);
 
-      const res = await fetch("/api/extract", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -38,13 +40,21 @@ export default function LeftPanel() {
         body: JSON.stringify({ url: videoUrl }),
       });
 
-      const data = await res.json();
+      console.log("STATUS:", res.status);
 
-      console.log("Extract response:", data);
-      alert("Check console for response");
+      const data = await res.json();
+      console.log("RESPONSE:", data);
+
+      if (!res.ok) {
+        alert("Extraction failed: " + data.error);
+        return;
+      }
+
+      alert(`Success! Video ID: ${data.videoId}`);
+
     } catch (err) {
-      console.error(err);
-      alert("Extraction failed");
+      console.error("CRASH:", err);
+      alert("Extraction crashed");
     } finally {
       setLoading(false);
     }
@@ -97,7 +107,7 @@ export default function LeftPanel() {
       <input
         value={videoUrl}
         onChange={(e) => setVideoUrl(e.target.value)}
-        placeholder="Paste video link"
+        placeholder="Paste YouTube link"
         style={{
           padding: "10px",
           borderRadius: "8px",
