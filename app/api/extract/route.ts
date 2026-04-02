@@ -1,62 +1,87 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    if (!body?.url) {
-      return NextResponse.json({ error: "No URL" }, { status: 400 });
+    // ===== VALIDATION =====
+    if (!body?.url || typeof body.url !== "string") {
+      return NextResponse.json(
+        { error: "Missing or invalid URL" },
+        { status: 400 }
+      );
     }
 
-    const match = body.url.match(
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/i
+    const url = body.url.trim();
+
+    // ===== YOUTUBE ID EXTRACTION =====
+    const match = url.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/i
     );
 
     if (!match) {
-      return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid YouTube URL" },
+        { status: 400 }
+      );
     }
 
     const videoId = match[1];
 
-    // 🔥 TEMP MOCK (until we fetch real transcript)
-    const fakeTranscript = `
-    This video talks about discipline, consistency, and long-term thinking.
-    Success is built through repeated actions and clarity of purpose.
+    // ===== TEMP TRANSCRIPT (replace later) =====
+    const transcript = `
+    This video discusses discipline, consistency, and long-term thinking.
+    Success is built through repeated actions and identity shifts over time.
     `;
 
+    // ===== ENV CHECK =====
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("Missing OpenAI key");
     }
 
+    // ===== OPENAI INIT =====
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const ai = await openai.chat.completions.create({
-      model: "gpt-4o",
+    // ===== AI CALL =====
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // 🔥 cheap + stable
       messages: [
         {
           role: "system",
           content:
-            "Convert the following content into structured insights and thinking nodes. Be sharp, no fluff.",
+            "Convert the content into sharp insights. No fluff. 2–3 lines max.",
         },
         {
           role: "user",
-          content: fakeTranscript,
+          content: transcript,
         },
       ],
     });
 
+    const insight =
+      response.choices?.[0]?.message?.content || "No insight generated.";
+
+    // ===== RESPONSE =====
     return NextResponse.json({
       success: true,
       videoId,
-      insight: ai.choices[0].message.content,
+      insight,
     });
 
-  } catch (err) {
+  } catch (err: any) {
+    console.error("EXTRACT ERROR:", err);
+
     return NextResponse.json(
-      { error: String(err) },
+      {
+        success: false,
+        error: err?.message || "Extraction failed",
+      },
       { status: 500 }
     );
   }
