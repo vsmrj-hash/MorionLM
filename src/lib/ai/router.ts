@@ -1,36 +1,45 @@
-import { NextResponse } from "next/server";
+import OpenAI from 'openai';
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+export interface AiNodeContext {
+  type?: string;
+  label?: string;
+  data?: { type?: string; label?: string };
+}
 
-export async function POST(req: Request) {
-  try {
-    const { url } = await req.json();
+// ✅ THIS EXPORT MUST EXIST
+export async function synthesizeContext(
+  nodes: AiNodeContext[],
+  prompt: string
+) {
+  const contextData = nodes.map((n) => ({
+    type: n.type || n.data?.type,
+    content: n.label || n.data?.label,
+  }));
 
-    if (!url) {
-      return NextResponse.json({ error: "No URL provided" }, { status: 400 });
-    }
-
-    const match = url.match(
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/
-    );
-
-    if (!match) {
-      return NextResponse.json({ error: "Invalid YouTube URL" }, { status: 400 });
-    }
-
-    return NextResponse.json({
-      type: "video",
-      videoId: match[1],
-      message: "Extraction working",
-    });
-
-  } catch (err) {
-    console.error("EXTRACT ERROR:", err);
-
-    return NextResponse.json(
-      { error: String(err) },
-      { status: 500 }
-    );
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY not configured");
   }
+
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You are Morion OS, a cognitive operating system. Synthesize the provided context nodes into a single profound insight. Provide a pure observation. No platitudes. Keep it concise (1-2 sentences).',
+      },
+      {
+        role: 'user',
+        content: `Nodes context: ${JSON.stringify(
+          contextData
+        )}\n\nQuery: ${prompt}`,
+      },
+    ],
+  });
+
+  return response.choices[0].message.content;
 }
