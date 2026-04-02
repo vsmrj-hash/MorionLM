@@ -7,6 +7,8 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    console.log("BODY RECEIVED:", body); // 🔥 debug
+
     if (!body || typeof body.url !== "string") {
       return NextResponse.json(
         { error: "Missing or invalid URL" },
