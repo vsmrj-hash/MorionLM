@@ -11,31 +11,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No URL provided" }, { status: 400 });
     }
 
-    // 🔥 TEMP: Extract video ID (YouTube only for now)
-    const videoIdMatch = url.match(
+    const match = url.match(
       /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/
     );
 
-    const videoId = videoIdMatch ? videoIdMatch[1] : null;
-
-    if (!videoId) {
-      return NextResponse.json(
-        { error: "Invalid YouTube URL" },
-        { status: 400 }
-      );
+    if (!match) {
+      return NextResponse.json({ error: "Invalid YouTube URL" }, { status: 400 });
     }
 
-    // 🔥 BASIC RESPONSE (replace later with transcript API)
     return NextResponse.json({
       type: "video",
-      title: "YouTube Video",
-      videoId,
-      message: "Extraction working (basic)",
+      videoId: match[1],
+      message: "Extraction working",
     });
+
   } catch (err) {
-    console.error(err);
+    console.error("EXTRACT ERROR:", err);
+
     return NextResponse.json(
-      { error: "Extraction failed" },
+      { error: String(err) },
       { status: 500 }
     );
   }
