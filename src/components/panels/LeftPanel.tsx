@@ -5,15 +5,11 @@ import { useGraph } from "@/lib/store/GraphContext";
 
 export default function LeftPanel() {
   const [thought, setThought] = useState("");
-  const { synthesize } = useGraph();
+  const { addNode, synthesize } = useGraph();
 
   const handleAdd = () => {
     if (!thought.trim()) return;
-
-    window.dispatchEvent(
-      new CustomEvent("ADD_NODE", { detail: thought })
-    );
-
+    addNode(thought);
     setThought("");
   };
 
@@ -26,27 +22,58 @@ export default function LeftPanel() {
         flexDirection: "column",
         gap: "16px",
         background: "#0a0a0a",
+        borderRight: "1px solid #1a1a1a",
+        height: "100%",
+        zIndex: 10
       }}
     >
+      <div style={{ marginBottom: '12px' }}>
+        <h2 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#fff', opacity: 0.8 }}>NEW NODE</h2>
+      </div>
+
       <textarea
         value={thought}
         onChange={(e) => setThought(e.target.value)}
-        placeholder="Write your thoughts..."
+        placeholder="Record a thought..."
+        className="crystal-input"
         style={{
-          padding: "10px",
-          background: "#000",
-          color: "#fff",
-          border: "1px solid #333",
+          flex: 1,
+          maxHeight: '120px',
+          padding: "12px",
+          resize: 'none'
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleAdd();
+          }
         }}
       />
 
-      <button onClick={handleAdd}>
-        Add Thought
+      <button 
+        onClick={handleAdd}
+        className="glass-button"
+        style={{
+          background: 'var(--accent-red)',
+          color: '#fff',
+          fontWeight: 600
+        }}
+      >
+        Record Capture
       </button>
 
-      <button onClick={synthesize}>
+      <div style={{ margin: '16px 0', borderTop: '1px solid #1a1a1a' }} />
+
+      <button 
+        onClick={synthesize}
+        className="glass-button"
+      >
         Synthesize Selected
       </button>
+      
+      <p style={{ fontSize: '0.7rem', color: '#555', textAlign: 'center' }}>
+        Select multiple nodes to synthesize insights.
+      </p>
     </div>
   );
 }

@@ -1,110 +1,96 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
-import ReactFlow, {
+import React, { useCallback } from "react";
+import {
+  ReactFlow,
   Background,
   Controls,
-  addEdge,
-  useNodesState,
-  useEdgesState,
-  Connection,
+  applyNodeChanges,
+  applyEdgeChanges,
+  NodeChange,
+  EdgeChange,
   Node,
-} from "reactflow";
+} from "@xyflow/react";
 
-import "reactflow/dist/style.css";
-import { useGraph } from "@/lib/store/GraphContext";
+import "@xyflow/react/dist/style.css";
+import { useGraph, NodeType } from "@/lib/store/GraphContext";
+import BaseNode from "./nodes/BaseNode";
+
+const nodeTypes = {
+  base: BaseNode,
+};
 
 export default function GraphEngine() {
-  const { setSelectedIds } = useGraph();
+  const {
+    nodes,
+    setNodes,
+    edges,
+    setEdges,
+    onConnect,
+    setSelectedIds,
+  } = useGraph();
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const onNodesChange = useCallback(
+    (changes: NodeChange<NodeType>[]) => setNodes((nds) => applyNodeChanges<NodeType>(changes, nds)),
+    [setNodes]
+  );
 
-  // 🔥 LOCAL SELECTION STATE (CRITICAL)
-  const [selected, setSelected] = useState<string[]>([]);
-
-  // 🔥 Add node
-  const addNode = useCallback((label: string) => {
-    const newNode: Node = {
-      id: Date.now().toString(),
-      position: {
-        x: Math.random() * 600,
-        y: Math.random() * 400,
-      },
-      data: { label },
-      style: {
-        background: "#1e1e1e",
-        color: "#fff",
-        border: "1px solid rgba(255,255,255,0.2)",
-        borderRadius: "8px",
-        padding: "10px",
-        fontSize: "12px",
-        maxWidth: 180,
-      },
-    };
-
-    setNodes((nds) => [...nds, newNode]);
-  }, [setNodes]);
-
-  // 🔥 Listen for add
-  React.useEffect(() => {
-    const handler = (e: any) => addNode(e.detail);
-    window.addEventListener("ADD_NODE", handler);
-    return () => window.removeEventListener("ADD_NODE", handler);
-  }, [addNode]);
-
-  // 🔥 Connect
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
     [setEdges]
   );
 
-  // 🔥 CLICK SELECTION (FIXED)
-  const onNodeClick = (_: any, node: any) => {
-    setSelected((prev) => {
-      let updated;
-
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedIds((prev) => {
       if (prev.includes(node.id)) {
-        updated = prev.filter((id) => id !== node.id);
+        return prev.filter((id) => id !== node.id);
       } else {
-        updated = [...prev, node.id];
+        return [...prev, node.id];
       }
-
-      // 🔥 update global selection
-      setSelectedIds(updated);
-
-      return updated;
     });
-  };
+  }, [setSelectedIds]);
 
-  // 🔥 APPLY GREEN HIGHLIGHT
-  const styledNodes = nodes.map((n) => ({
-    ...n,
-    style: {
-      ...n.style,
-      border: selected.includes(n.id)
-        ? "2px solid #00ff88"
-        : "1px solid rgba(255,255,255,0.2)",
-      boxShadow: selected.includes(n.id)
-        ? "0 0 12px rgba(0,255,136,0.6)"
-        : "none",
-    },
-  }));
+  const onPaneClick = useCallback(() => {
+    setSelectedIds([]);
+  }, [setSelectedIds]);
 
   return (
-    <div style={{ flex: 1, height: "100%" }}>
+    <div style={{ flex: 1, height: "100%", position: "relative" }}>
       <ReactFlow
-        nodes={styledNodes} // 🔥 IMPORTANT
+        nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
+        nodeTypes={nodeTypes}
         fitView
       >
-        <Background />
+        <Background color="#111" gap={20} />
         <Controls />
       </ReactFlow>
+
+      <style jsx global>{`
+        .react-flow__node {
+          cursor: pointer;
+          border: none !important;
+          background: transparent !important;
+          padding: 0 !important;
+        }
+        .react-flow__handle {
+          width: 8px !important;
+          height: 8px !important;
+          background: rgba(255,255,255,0.2) !important;
+          border: 1px solid rgba(255,255,255,0.1) !important;
+        }
+        .react-flow__handle:hover {
+          background: var(--accent-red) !important;
+        }
+        .react-flow__attribution {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }

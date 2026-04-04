@@ -3,8 +3,7 @@
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { motion } from 'framer-motion';
 import { LucideIcon, Brain, Video, Image as ImageIcon, Sparkles, Lightbulb } from 'lucide-react';
-import { useGraph } from '@/lib/store/GraphContext';
-import { MorionNodeData } from '@/lib/store/GraphContext';
+import { useGraph, MorionNodeData } from '@/lib/store/GraphContext';
 
 const typeIcons: Record<string, LucideIcon> = {
   thought: Brain,
@@ -16,10 +15,10 @@ const typeIcons: Record<string, LucideIcon> = {
 
 export default function BaseNode({ data, id, selected }: NodeProps) {
   const { selectedIds } = useGraph();
-  const nodeData = data as MorionNodeData;
+  const nodeData = data as unknown as MorionNodeData;
   const Icon = typeIcons[nodeData.type] || Brain;
   const isInsight = nodeData.type === 'insight';
-  const isSelected = selected || selectedIds.has(id);
+  const isSelected = selected || selectedIds.includes(id);
 
   const borderColor = isSelected
     ? 'rgba(255,255,255,0.6)'
@@ -71,7 +70,7 @@ export default function BaseNode({ data, id, selected }: NodeProps) {
 
       {nodeData.tags && nodeData.tags.length > 0 && (
         <div style={{ display: 'flex', gap: '6px', marginTop: '14px', flexWrap: 'wrap' }}>
-          {nodeData.tags.map(tag => (
+          {nodeData.tags.map((tag: string) => (
             <span key={tag} style={{
               fontSize: '0.7rem',
               padding: '2px 8px',
