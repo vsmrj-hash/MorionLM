@@ -1,137 +1,110 @@
 "use client";
 
-import { ReactFlow, Background, Controls, NodeTypes } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import { useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import BaseNode from './nodes/BaseNode';
-import FloatingToolbar from './FloatingToolbar';
-import UndoToast from './UndoToast';
-import { useGraph } from '@/lib/store/GraphContext';
+import React, { useCallback, useState } from "react";
+import ReactFlow, {
+  Background,
+  Controls,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  Connection,
+  Node,
+} from "reactflow";
 
-const nodeTypes: NodeTypes = {
-  custom: BaseNode,
-};
+import "reactflow/dist/style.css";
+import { useGraph } from "@/lib/store/GraphContext";
 
 export default function GraphEngine() {
-  const {
-    nodes, edges,
-    onNodesChange, onEdgesChange, onConnect,
-    selectedIds, setSelectedIds,
-    deleteSelectedNodes, undoDelete, undoSnapshot
-  } = useGraph();
+  const { setSelectedIds } = useGraph();
 
-  // Sync React Flow selection state → our context
-  const handleSelectionChange = useCallback(
-    ({ nodes: selNodes }: { nodes: { id: string }[], edges: { id: string }[] }) => {
-      setSelectedIds(new Set(selNodes.map(n => n.id)));
-    },
-    [setSelectedIds]
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // 🔥 LOCAL SELECTION STATE (CRITICAL)
+  const [selected, setSelected] = useState<string[]>([]);
+
+  // 🔥 Add node
+  const addNode = useCallback((label: string) => {
+    const newNode: Node = {
+      id: Date.now().toString(),
+      position: {
+        x: Math.random() * 600,
+        y: Math.random() * 400,
+      },
+      data: { label },
+      style: {
+        background: "#1e1e1e",
+        color: "#fff",
+        border: "1px solid rgba(255,255,255,0.2)",
+        borderRadius: "8px",
+        padding: "10px",
+        fontSize: "12px",
+        maxWidth: 180,
+      },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+  }, [setNodes]);
+
+  // 🔥 Listen for add
+  React.useEffect(() => {
+    const handler = (e: any) => addNode(e.detail);
+    window.addEventListener("ADD_NODE", handler);
+    return () => window.removeEventListener("ADD_NODE", handler);
+  }, [addNode]);
+
+  // 🔥 Connect
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
   );
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  // 🔥 CLICK SELECTION (FIXED)
+  const onNodeClick = (_: any, node: any) => {
+    setSelected((prev) => {
+      let updated;
 
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        deleteSelectedNodes();
+      if (prev.includes(node.id)) {
+        updated = prev.filter((id) => id !== node.id);
+      } else {
+        updated = [...prev, node.id];
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.preventDefault();
-        if (undoSnapshot) undoDelete();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [deleteSelectedNodes, undoDelete, undoSnapshot]);
 
-  const isEmpty = nodes.length === 0;
+      // 🔥 update global selection
+      setSelectedIds(updated);
+
+      return updated;
+    });
+  };
+
+  // 🔥 APPLY GREEN HIGHLIGHT
+  const styledNodes = nodes.map((n) => ({
+    ...n,
+    style: {
+      ...n.style,
+      border: selected.includes(n.id)
+        ? "2px solid #00ff88"
+        : "1px solid rgba(255,255,255,0.2)",
+      boxShadow: selected.includes(n.id)
+        ? "0 0 12px rgba(0,255,136,0.6)"
+        : "none",
+    },
+  }));
 
   return (
-    <div style={{ flex: 1, position: 'relative', height: '100%' }}>
-      {/* Selection dim overlay */}
-      <AnimatePresence>
-        {selectedIds.size > 0 && (
-          <motion.div
-            key="dim-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'rgba(0,0,0,0.25)',
-              zIndex: 1,
-              pointerEvents: 'none',
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Empty state */}
-      <AnimatePresence>
-        {isEmpty && (
-          <motion.div
-            key="empty-state"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 2,
-              pointerEvents: 'none',
-            }}
-          >
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', color: 'rgba(255,255,255,0.2)', textAlign: 'center', lineHeight: 1.5 }}>
-              Clean slate.<br />
-              <span style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.12)' }}>Now build something better.</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+    <div style={{ flex: 1, height: "100%" }}>
       <ReactFlow
-        nodes={nodes}
+        nodes={styledNodes} // 🔥 IMPORTANT
         edges={edges}
-        nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onSelectionChange={handleSelectionChange}
+        onNodeClick={onNodeClick}
         fitView
-        multiSelectionKeyCode="Shift"
-        selectionOnDrag={true}
-        nodesDraggable
-        nodesConnectable
-        elementsSelectable
-        deleteKeyCode={null} /* we handle Delete ourselves */
-        proOptions={{ hideAttribution: true }}
-        style={{ zIndex: 2 }}
       >
-        <Background gap={24} size={2} color="rgba(255,255,255,0.03)" />
-        <Controls
-          style={{
-            background: 'rgba(10,10,10,0.85)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '8px',
-          }}
-        />
+        <Background />
+        <Controls />
       </ReactFlow>
-
-      {/* Floating toolbar — renders above everything */}
-      <FloatingToolbar />
-
-      {/* Undo toast — lowest confirmed position */}
-      <UndoToast />
     </div>
   );
 }
