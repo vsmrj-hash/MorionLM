@@ -3,9 +3,9 @@
 import { useGraph } from "@/lib/store/GraphContext";
 
 export default function FloatingToolbar() {
-  const { selectedIds, clearSelection, deleteSelectedNodes } = useGraph();
+  const { selectedIds } = useGraph();
 
-  const count = selectedIds.length; // ✅ FIXED
+  const count = selectedIds.length;
 
   if (count === 0) return null;
 
@@ -26,15 +26,6 @@ export default function FloatingToolbar() {
       }}
     >
       <span style={{ color: "#aaa" }}>{count} selected</span>
-
-      <button onClick={clearSelection}>Clear</button>
-
-      <button
-        onClick={deleteSelectedNodes}
-        style={{ color: "red" }}
-      >
-        Delete
-      </button>
     </div>
   );
 }
