@@ -8,7 +8,7 @@ export interface NodeType {
   position: { x: number; y: number };
 }
 
-interface GraphContextType {
+export interface GraphContextType {
   nodes: NodeType[];
   setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>;
 
@@ -22,13 +22,12 @@ interface GraphContextType {
   deleteSelectedNodes: () => void;
 }
 
-const GraphContext = createContext<GraphContextType | undefined>(undefined);
+const GraphContext = createContext<GraphContextType | null>(null);
 
 export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
   const [nodes, setNodes] = useState<NodeType[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // ✅ Add node
   const addNode = (label: string) => {
     const newNode: NodeType = {
       id: crypto.randomUUID(),
@@ -42,18 +41,15 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
     setNodes((prev) => [...prev, newNode]);
   };
 
-  // ✅ Clear selection
   const clearSelection = () => {
     setSelectedIds([]);
   };
 
-  // ✅ Delete selected nodes
   const deleteSelectedNodes = () => {
     setNodes((prev) => prev.filter((n) => !selectedIds.includes(n.id)));
     setSelectedIds([]);
   };
 
-  // ✅ Mock synthesis
   const synthesize = () => {
     if (selectedIds.length < 2) {
       alert("Select at least 2 nodes");
@@ -68,9 +64,7 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
       .map((n) => n.data.label)
       .join(" + ");
 
-    const insight = `Insight: ${combined} → deeper connection emerges`;
-
-    addNode(insight);
+    addNode(`Insight: ${combined}`);
     setSelectedIds([]);
   };
 
@@ -93,7 +87,7 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
 };
 
 export const useGraph = () => {
-  const context = useContext(GraphContext);
-  if (!context) throw new Error("useGraph must be used inside GraphProvider");
-  return context;
+  const ctx = useContext(GraphContext);
+  if (!ctx) throw new Error("useGraph must be used inside GraphProvider");
+  return ctx;
 };
