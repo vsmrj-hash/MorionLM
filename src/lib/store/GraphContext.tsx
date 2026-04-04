@@ -1,75 +1,99 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState } from "react";
 
-interface GraphContextType {
-  selectedIds: string[];
-  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
-  synthesize: () => Promise<void>;
+export interface NodeType {
+  id: string;
+  data: { label: string };
+  position: { x: number; y: number };
 }
 
-const GraphContext = createContext<GraphContextType | null>(null);
+interface GraphContextType {
+  nodes: NodeType[];
+  setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>;
 
-export function GraphProvider({ children }: { children: ReactNode }) {
+  selectedIds: string[];
+  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
+
+  addNode: (label: string) => void;
+  synthesize: () => void;
+
+  clearSelection: () => void;
+  deleteSelectedNodes: () => void;
+}
+
+const GraphContext = createContext<GraphContextType | undefined>(undefined);
+
+export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
+  const [nodes, setNodes] = useState<NodeType[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const synthesize = async () => {
+  // ✅ Add node
+  const addNode = (label: string) => {
+    const newNode: NodeType = {
+      id: crypto.randomUUID(),
+      data: { label },
+      position: {
+        x: Math.random() * 400,
+        y: Math.random() * 400,
+      },
+    };
+
+    setNodes((prev) => [...prev, newNode]);
+  };
+
+  // ✅ Clear selection
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  // ✅ Delete selected nodes
+  const deleteSelectedNodes = () => {
+    setNodes((prev) => prev.filter((n) => !selectedIds.includes(n.id)));
+    setSelectedIds([]);
+  };
+
+  // ✅ Mock synthesis
+  const synthesize = () => {
     if (selectedIds.length < 2) {
       alert("Select at least 2 nodes");
       return;
     }
 
-    try {
-      // 🔥 extract labels from nodes
-      const labels = selectedIds.map((id) => {
-        const el = document.querySelector(`[data-id='${id}']`);
-        return el?.textContent || "";
-      });
+    const selectedNodes = nodes.filter((n) =>
+      selectedIds.includes(n.id)
+    );
 
-      const res = await fetch("/api/synthesis", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nodes: labels.map((l) => ({ label: l })),
-          prompt:
-            "Find deep connections, contradictions, and generate a new insight.",
-        }),
-      });
+    const combined = selectedNodes
+      .map((n) => n.data.label)
+      .join(" + ");
 
-      const data = await res.json();
+    const insight = `Insight: ${combined} → deeper connection emerges`;
 
-      if (!res.ok) throw new Error(data.error);
-
-      // 🔥 create new node
-      window.dispatchEvent(
-        new CustomEvent("ADD_NODE", { detail: data.insight })
-      );
-
-      // clear selection
-      setSelectedIds([]);
-
-    } catch (err: any) {
-      alert("Synthesis failed: " + err.message);
-    }
+    addNode(insight);
+    setSelectedIds([]);
   };
 
   return (
     <GraphContext.Provider
       value={{
+        nodes,
+        setNodes,
         selectedIds,
         setSelectedIds,
+        addNode,
         synthesize,
+        clearSelection,
+        deleteSelectedNodes,
       }}
     >
       {children}
     </GraphContext.Provider>
   );
-}
+};
 
-export function useGraph() {
-  const ctx = useContext(GraphContext);
-  if (!ctx) throw new Error("useGraph must be used inside provider");
-  return ctx;
-}
+export const useGraph = () => {
+  const context = useContext(GraphContext);
+  if (!context) throw new Error("useGraph must be used inside GraphProvider");
+  return context;
+};
