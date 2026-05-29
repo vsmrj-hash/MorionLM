@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import {
   Brain, Video, Image as ImageIcon, Sparkles, Lightbulb, Globe,
-  ChevronDown, Plus, X, Loader2, BookOpen
+  ChevronDown, Plus, X, Loader2, BookOpen, Link, FileText
 } from 'lucide-react';
 import { useGraph, NodeType } from '@/lib/store/GraphContext';
 
@@ -51,6 +51,8 @@ function NodeRow({ node, isSelected, onSelect }: { node: NodeType; isSelected: b
 export default function LeftPanel() {
   const [thought, setThought] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
+  const [pasteText, setPasteText] = useState('');
+  const [ingestMode, setIngestMode] = useState<'url' | 'text'>('url');
   const [newNotebook, setNewNotebook] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotebookInput, setShowNotebookInput] = useState(false);
@@ -72,12 +74,21 @@ export default function LeftPanel() {
     textareaRef.current?.focus();
   };
 
-  const handleIngest = () => {
-    const url = sourceUrl.trim();
-    if (!url) return;
-    ingestSource(url);
-    setSourceUrl('');
+  const handleIngest = async () => {
+    if (ingestMode === 'url') {
+      const url = sourceUrl.trim();
+      if (!url) return;
+      const ok = await ingestSource(url);
+      if (ok) setSourceUrl('');
+    } else {
+      const text = pasteText.trim();
+      if (!text) return;
+      const ok = await ingestSource('', text);
+      if (ok) setPasteText('');
+    }
   };
+
+  const canIngest = ingestMode === 'url' ? sourceUrl.trim().length > 0 : pasteText.trim().length > 0;
 
   const handleAddNotebook = () => {
     if (!newNotebook.trim()) return;
@@ -200,31 +211,97 @@ export default function LeftPanel() {
 
       {/* Source ingest */}
       <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.28)', marginBottom: 8 }}>Ingest Source</p>
-        <div style={{ display: 'flex', gap: 5 }}>
-          <input
-            type='url'
-            value={sourceUrl}
-            onChange={e => setSourceUrl(e.target.value)}
-            placeholder='https://...'
-            className='crystal-input'
-            onKeyDown={e => e.key === 'Enter' && handleIngest()}
-            disabled={isIngesting}
-            style={{ fontSize: '0.8rem' }}
-          />
-          <button
-            onClick={handleIngest}
-            disabled={isIngesting || !sourceUrl.trim()}
-            style={{
-              flexShrink: 0, padding: '0 10px', borderRadius: 4, border: 'none',
-              background: 'rgba(47,182,124,0.2)', color: '#2FB67C', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', opacity: isIngesting ? 0.6 : 1,
-            }}
-          >
-            {isIngesting ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Globe size={13} />}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.28)', margin: 0 }}>Ingest Source</p>
+          <div style={{ display: 'flex', gap: 2, background: 'rgba(255,255,255,0.04)', borderRadius: 4, padding: 2 }}>
+            <button
+              onClick={() => setIngestMode('url')}
+              title="Ingest from URL"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px', borderRadius: 3, border: 'none', cursor: 'pointer', fontSize: '0.68rem',
+                background: ingestMode === 'url' ? 'rgba(47,182,124,0.2)' : 'transparent',
+                color: ingestMode === 'url' ? '#2FB67C' : 'rgba(255,255,255,0.3)',
+              }}
+            >
+              <Link size={10} /> URL
+            </button>
+            <button
+              onClick={() => setIngestMode('text')}
+              title="Paste text directly"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px', borderRadius: 3, border: 'none', cursor: 'pointer', fontSize: '0.68rem',
+                background: ingestMode === 'text' ? 'rgba(47,182,124,0.2)' : 'transparent',
+                color: ingestMode === 'text' ? '#2FB67C' : 'rgba(255,255,255,0.3)',
+              }}
+            >
+              <FileText size={10} /> Text
+            </button>
+          </div>
         </div>
-        <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', marginTop: 5 }}>Paste a URL — Claude reads and structures it.</p>
+
+        {ingestMode === 'url' ? (
+          <div style={{ display: 'flex', gap: 5 }}>
+            <input
+              type='url'
+              value={sourceUrl}
+              onChange={e => setSourceUrl(e.target.value)}
+              placeholder='https://...'
+              className='crystal-input'
+              onKeyDown={e => e.key === 'Enter' && handleIngest()}
+              disabled={isIngesting}
+              style={{ fontSize: '0.8rem' }}
+            />
+            <button
+              onClick={handleIngest}
+              disabled={isIngesting || !canIngest}
+              style={{
+                flexShrink: 0, padding: '0 10px', borderRadius: 4, border: 'none',
+                background: 'rgba(47,182,124,0.2)', color: '#2FB67C',
+                cursor: canIngest && !isIngesting ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center',
+                opacity: isIngesting || !canIngest ? 0.5 : 1,
+              }}
+            >
+              {isIngesting
+                ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                : <Globe size={13} />}
+            </button>
+          </div>
+        ) : (
+          <>
+            <textarea
+              value={pasteText}
+              onChange={e => setPasteText(e.target.value)}
+              placeholder='Paste article text, notes, or any content here...'
+              className='crystal-input'
+              rows={4}
+              disabled={isIngesting}
+              style={{ resize: 'none', fontSize: '0.78rem', width: '100%' }}
+            />
+            <button
+              onClick={handleIngest}
+              disabled={isIngesting || !canIngest}
+              style={{
+                marginTop: 6, width: '100%', padding: '7px', borderRadius: 4,
+                background: canIngest && !isIngesting ? 'rgba(47,182,124,0.15)' : 'rgba(255,255,255,0.04)',
+                border: '1px solid ' + (canIngest && !isIngesting ? 'rgba(47,182,124,0.3)' : 'rgba(255,255,255,0.08)'),
+                color: canIngest && !isIngesting ? '#2FB67C' : 'rgba(255,255,255,0.25)',
+                cursor: canIngest && !isIngesting ? 'pointer' : 'default',
+                fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+              }}
+            >
+              {isIngesting
+                ? <><Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Ingesting...</>
+                : <><Globe size={11} /> Ingest Text</>}
+            </button>
+          </>
+        )}
+
+        <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.18)', marginTop: 6, lineHeight: 1.4 }}>
+          {ingestMode === 'url'
+            ? 'Claude reads the page and extracts key knowledge.'
+            : 'Claude structures the pasted content into a source node.'}
+        </p>
       </div>
 
       {/* Node list */}

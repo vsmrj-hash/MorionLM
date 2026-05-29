@@ -54,7 +54,7 @@ export interface GraphContextType {
   addNotebook: (name: string) => void;
   setCurrentNotebook: (name: string) => void;
 
-  ingestSource: (url: string) => Promise<void>;
+  ingestSource: (url: string, text?: string) => Promise<boolean>;
   isIngesting: boolean;
 
   toast: { message: string; type?: "info" | "error" } | null;
@@ -85,7 +85,6 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
   const saveNodesRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveEdgesRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // --- Persistence: load on mount ---
   useEffect(() => {
     const load = async () => {
       isLoadingRef.current = true;
@@ -120,14 +119,12 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
           setEdges(dbEdges.map((e) => ({ id: e.id, source: e.source, target: e.target })));
         }
       } finally {
-        // Small delay so React state settles before we enable saves
         setTimeout(() => { isLoadingRef.current = false; }, 200);
       }
     };
     load();
   }, []);
 
-  // --- Persistence: save nodes ---
   useEffect(() => {
     if (isLoadingRef.current) return;
     if (saveNodesRef.current) clearTimeout(saveNodesRef.current);
@@ -153,7 +150,6 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
     }, 600);
   }, [nodes]);
 
-  // --- Persistence: save edges ---
   useEffect(() => {
     if (isLoadingRef.current) return;
     if (saveEdgesRef.current) clearTimeout(saveEdgesRef.current);
@@ -167,7 +163,6 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
     }, 600);
   }, [edges]);
 
-  // --- Node operations ---
   const addNode = useCallback(
     (label: string, type: string = "thought", extra: Partial<MorionNodeData> = {}) => {
       const id = crypto.randomUUID();
@@ -221,7 +216,6 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
     setTimeout(() => setToast(null), 2000);
   }, [selectedIds]);
 
-  // Legacy quick synthesize — creates a new node
   const synthesize = useCallback(() => {
     const ids = selectedIds.length > 0 ? selectedIds : [];
     if (ids.length < 2) {
@@ -234,7 +228,6 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedIds([]);
   }, [nodes, selectedIds, addNode]);
 
-  // Real AI synthesis — pushes to synthesisHistory for display in RightPanel
   const synthesizeNodes = useCallback(
     async (query: string, mode: string = "ask") => {
       const targetIds = selectedIds.length > 0 ? selectedIds : nodes.map((n) => n.id);
@@ -289,7 +282,6 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
     [nodes, selectedIds]
   );
 
-  // Crystallize a synthesis result as a graph node
   const crystallizeResult = useCallback(
     (result: SynthesisResult) => {
       addNode(
@@ -303,15 +295,17 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
     [addNode, currentNotebook]
   );
 
-  // Source ingestion
   const ingestSource = useCallback(
-    async (url: string) => {
+    async (url: string, text?: string): Promise<boolean> => {
       setIsIngesting(true);
       try {
         const res = await fetch("/api/ingest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({
+            url: url || undefined,
+            text: text || undefined,
+          }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Ingestion failed");
@@ -319,15 +313,17 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
         addNode(data.title, "source", {
           content: data.summary,
           tags: data.tags || [],
-          sourceUrl: url,
+          sourceUrl: data.sourceUrl || url || undefined,
           notebook: currentNotebook,
         });
-        setToast({ message: `✓ Ingested: ${data.title}` });
+        setToast({ message: `Ingested: ${data.title}` });
         setTimeout(() => setToast(null), 3000);
+        return true;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Ingest failed";
         setToast({ message: msg, type: "error" });
-        setTimeout(() => setToast(null), 3000);
+        setTimeout(() => setToast(null), 5000);
+        return false;
       } finally {
         setIsIngesting(false);
       }
@@ -335,7 +331,6 @@ export const GraphProvider = ({ children }: { children: React.ReactNode }) => {
     [addNode, currentNotebook]
   );
 
-  // Notebook management
   const addNotebook = useCallback((name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
