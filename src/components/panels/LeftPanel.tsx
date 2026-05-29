@@ -1,79 +1,260 @@
 "use client";
 
-import { useState } from "react";
-import { useGraph } from "@/lib/store/GraphContext";
+import { useState, useRef } from 'react';
+import {
+  Brain, Video, Image as ImageIcon, Sparkles, Lightbulb, Globe,
+  ChevronDown, Plus, X, Loader2, BookOpen
+} from 'lucide-react';
+import { useGraph, NodeType } from '@/lib/store/GraphContext';
+
+const TYPE_ICONS: Record<string, React.ElementType> = {
+  thought: Brain,
+  video: Video,
+  image: ImageIcon,
+  insight: Sparkles,
+  idea: Lightbulb,
+  source: Globe,
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  thought: 'rgba(255,255,255,0.5)',
+  video: '#5C8DFF',
+  image: '#7C5CF6',
+  insight: 'var(--accent-red)',
+  idea: '#F5A623',
+  source: '#2FB67C',
+};
+
+function NodeRow({ node, isSelected, onSelect }: { node: NodeType; isSelected: boolean; onSelect: () => void }) {
+  const Icon = TYPE_ICONS[node.data.type] ?? Brain;
+  const color = TYPE_COLORS[node.data.type] ?? 'rgba(255,255,255,0.5)';
+
+  return (
+    <button
+      onClick={onSelect}
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%', textAlign: 'left',
+        padding: '7px 10px', borderRadius: 6, cursor: 'pointer', border: 'none',
+        background: isSelected ? 'rgba(211,47,47,0.1)' : 'transparent',
+        outline: isSelected ? '1px solid rgba(211,47,47,0.3)' : 'none',
+        transition: 'background 0.15s',
+      }}
+    >
+      <Icon size={13} color={color} style={{ marginTop: 2, flexShrink: 0 }} />
+      <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+        {node.data.label}
+      </span>
+    </button>
+  );
+}
 
 export default function LeftPanel() {
-  const [thought, setThought] = useState("");
-  const { addNode, synthesize } = useGraph();
+  const [thought, setThought] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [newNotebook, setNewNotebook] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showNotebookInput, setShowNotebookInput] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleAdd = () => {
+  const {
+    nodes, addNode,
+    notebooks, currentNotebook, addNotebook, setCurrentNotebook,
+    ingestSource, isIngesting,
+    selectedIds, setSelectedIds,
+  } = useGraph();
+
+  const currentNodes = nodes.filter(n => (n.data.notebook ?? 'Default') === currentNotebook);
+
+  const handleAddThought = () => {
     if (!thought.trim()) return;
-    addNode(thought);
-    setThought("");
+    addNode(thought, 'thought');
+    setThought('');
+    textareaRef.current?.focus();
+  };
+
+  const handleIngest = () => {
+    const url = sourceUrl.trim();
+    if (!url) return;
+    ingestSource(url);
+    setSourceUrl('');
+  };
+
+  const handleAddNotebook = () => {
+    if (!newNotebook.trim()) return;
+    addNotebook(newNotebook.trim());
+    setNewNotebook('');
+    setShowNotebookInput(false);
+  };
+
+  const toggleNodeSelect = (nodeId: string) => {
+    setSelectedIds(prev =>
+      prev.includes(nodeId) ? prev.filter(id => id !== nodeId) : [...prev, nodeId]
+    );
   };
 
   return (
     <div
       style={{
-        width: "280px",
-        padding: "20px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-        background: "#0a0a0a",
-        borderRight: "1px solid #1a1a1a",
-        height: "100%",
-        zIndex: 10
+        width: 260,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#080808',
+        borderRight: '1px solid rgba(255,255,255,0.05)',
+        zIndex: 10,
+        flexShrink: 0,
       }}
     >
-      <div style={{ marginBottom: '12px' }}>
-        <h2 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#fff', opacity: 0.8 }}>NEW NODE</h2>
+      {/* Notebook selector */}
+      <div style={{ padding: '16px 14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <BookOpen size={12} color='rgba(255,255,255,0.35)' />
+          <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.3)' }}>Notebook</span>
+        </div>
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowDropdown(p => !p)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 5, padding: '7px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.8)',
+              fontFamily: 'var(--font-display)', fontSize: '0.82rem',
+            }}
+          >
+            {currentNotebook}
+            <ChevronDown size={13} color='rgba(255,255,255,0.4)' />
+          </button>
+          {showDropdown && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+              background: '#111', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 5, marginTop: 3, overflow: 'hidden',
+            }}>
+              {notebooks.map(nb => (
+                <button
+                  key={nb}
+                  onClick={() => { setCurrentNotebook(nb); setShowDropdown(false); }}
+                  style={{
+                    width: '100%', textAlign: 'left', padding: '8px 12px', background: nb === currentNotebook ? 'rgba(211,47,47,0.12)' : 'transparent',
+                    border: 'none', cursor: 'pointer', fontSize: '0.82rem',
+                    color: nb === currentNotebook ? 'rgba(211,47,47,0.9)' : 'rgba(255,255,255,0.65)',
+                  }}
+                >
+                  {nb}
+                </button>
+              ))}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                {showNotebookInput ? (
+                  <div style={{ display: 'flex', gap: 4, padding: '6px 8px' }}>
+                    <input
+                      autoFocus
+                      value={newNotebook}
+                      onChange={e => setNewNotebook(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddNotebook(); if (e.key === 'Escape') setShowNotebookInput(false); }}
+                      placeholder='Notebook name'
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, padding: '4px 8px', fontSize: '0.8rem', color: '#fff', outline: 'none' }}
+                    />
+                    <button onClick={handleAddNotebook} style={{ background: 'var(--accent-red)', border: 'none', borderRadius: 3, padding: '4px 8px', cursor: 'pointer', color: '#fff', fontSize: '0.8rem' }}>+</button>
+                    <button onClick={() => setShowNotebookInput(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', padding: '4px' }}><X size={12} /></button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowNotebookInput(true)}
+                    style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Plus size={11} /> New notebook
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <textarea
-        value={thought}
-        onChange={(e) => setThought(e.target.value)}
-        placeholder="Record a thought..."
-        className="crystal-input"
-        style={{
-          flex: 1,
-          maxHeight: '120px',
-          padding: "12px",
-          resize: 'none'
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleAdd();
-          }
-        }}
-      />
+      {/* Thought capture */}
+      <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.28)', marginBottom: 8 }}>Capture Thought</p>
+        <textarea
+          ref={textareaRef}
+          value={thought}
+          onChange={e => setThought(e.target.value)}
+          placeholder='Record a thought...'
+          className='crystal-input'
+          rows={3}
+          style={{ resize: 'none' }}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddThought(); } }}
+        />
+        <button
+          onClick={handleAddThought}
+          style={{
+            marginTop: 8, width: '100%', padding: '8px', borderRadius: 4,
+            background: thought.trim() ? 'var(--accent-red)' : 'rgba(255,255,255,0.05)',
+            border: '1px solid ' + (thought.trim() ? 'var(--accent-red)' : 'rgba(255,255,255,0.08)'),
+            color: thought.trim() ? '#fff' : 'rgba(255,255,255,0.3)', cursor: thought.trim() ? 'pointer' : 'default',
+            fontSize: '0.78rem', fontFamily: 'var(--font-display)', letterSpacing: '0.5px', transition: 'all 0.2s',
+          }}
+        >
+          Add Node
+        </button>
+      </div>
 
-      <button 
-        onClick={handleAdd}
-        className="glass-button"
-        style={{
-          background: 'var(--accent-red)',
-          color: '#fff',
-          fontWeight: 600
-        }}
-      >
-        Record Capture
-      </button>
+      {/* Source ingest */}
+      <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.28)', marginBottom: 8 }}>Ingest Source</p>
+        <div style={{ display: 'flex', gap: 5 }}>
+          <input
+            type='url'
+            value={sourceUrl}
+            onChange={e => setSourceUrl(e.target.value)}
+            placeholder='https://...'
+            className='crystal-input'
+            onKeyDown={e => e.key === 'Enter' && handleIngest()}
+            disabled={isIngesting}
+            style={{ fontSize: '0.8rem' }}
+          />
+          <button
+            onClick={handleIngest}
+            disabled={isIngesting || !sourceUrl.trim()}
+            style={{
+              flexShrink: 0, padding: '0 10px', borderRadius: 4, border: 'none',
+              background: 'rgba(47,182,124,0.2)', color: '#2FB67C', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', opacity: isIngesting ? 0.6 : 1,
+            }}
+          >
+            {isIngesting ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Globe size={13} />}
+          </button>
+        </div>
+        <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', marginTop: 5 }}>Paste a URL — Claude reads and structures it.</p>
+      </div>
 
-      <div style={{ margin: '16px 0', borderTop: '1px solid #1a1a1a' }} />
-
-      <button 
-        onClick={synthesize}
-        className="glass-button"
-      >
-        Synthesize Selected
-      </button>
-      
-      <p style={{ fontSize: '0.7rem', color: '#555', textAlign: 'center' }}>
-        Select multiple nodes to synthesize insights.
-      </p>
+      {/* Node list */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 6px 10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px 8px' }}>
+          <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.28)' }}>
+            {currentNotebook} — {currentNodes.length} node{currentNodes.length !== 1 ? 's' : ''}
+          </span>
+          {selectedIds.length > 0 && (
+            <button
+              onClick={() => setSelectedIds([])}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: 3 }}
+            >
+              <X size={10} /> Clear
+            </button>
+          )}
+        </div>
+        {currentNodes.length === 0 ? (
+          <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.2)', textAlign: 'center', marginTop: 20 }}>No nodes yet.<br />Capture a thought above.</p>
+        ) : (
+          currentNodes.map(node => (
+            <NodeRow
+              key={node.id}
+              node={node}
+              isSelected={selectedIds.includes(node.id)}
+              onSelect={() => toggleNodeSelect(node.id)}
+            />
+          ))
+        )}
+      </div>
     </div>
   );
 }
